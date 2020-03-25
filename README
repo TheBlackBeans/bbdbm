@@ -6,8 +6,11 @@
  |_.__/|_.__/ \__,_|_| |_| |_|_.__/ 
                                     
                                     
- bbdbm is a database manager working both as a server-centrilised SQL-style service with a dedicated user and daemon,
- and as a one-to-one portable database manager.
+bbdbm is a database manager working both as a server-centrilised SQL-style service with a dedicated user and daemon,
+and as a one-to-one portable database manager.
  
- It includes an API at any level -- raw bytes level, up to fully abstract struct-typed level--,
- security features, and documentation -- again, at any level of usage.
+It includes an API at any level -- raw bytes level, up to fully abstract struct-typed level--,
+security features, and documentation -- again, at any level of usage.
+
+Requirements:
+ * nuts

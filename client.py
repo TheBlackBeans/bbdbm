@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-from bininterface import *
+from carrot import *
 import socket, sys
 
 class UnknownCommand(BaseException): pass

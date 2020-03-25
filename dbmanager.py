@@ -19,7 +19,7 @@ statis types that can be found in the database.
 
 import socket, os, sys, threading, datetime, traceback, io, configparser, signal
 from dbinterface import Database, LoginError
-from bininterface import read_int, read_float, read_string, write_int, write_float, write_string, gen_read_list, gen_write_list, read_bool, write_bool
+from carrot import read_int, read_float, read_string, write_int, write_float, write_string, gen_read_list, gen_write_list, read_bool, write_bool
 
 try:
     import setproctitle

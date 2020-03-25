@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import argparse, psutil, sys, socket, configparser, os
-from bininterface import write_int, read_int
+from carrot import write_int, read_int
 
 parser = argparse.ArgumentParser(prog="daemonmanager", description="Control and watch dbmanager daemon")
 parser.add_argument("--verbose", "-v", action="count", help="level of verbosity")
