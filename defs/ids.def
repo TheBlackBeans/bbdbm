@@ -1,0 +1,32 @@
+A1
+object ::= [/:user[@group]]::table_id-INT|table_name-STR[::object_id-INT[::entry_id-INT|entry_name|STR]]
+user ::= /:(user_id|user_name)[@group_id|group_name]|@(group_id|group_name)
+moral_user ::= /:user_id|username
+group ::= /:@group_id|group_name
+
+A2
+ids (group_id, user_id, table_id, object_id, entry_id) are index, order is the one in the pdb file, generated and kept when reed and writen.
+
+A3
+names must contain only alphanumericals and not only numbers
+
+A4
+Connections can handle multiple loged user
+
+A5
+Connections can handle a single active loged user
+
+A6
+Single user can connect once, they need to log out before anyone tried to log in again.
+
+A7
+All owners of a table must connect together and agree to change its password
+
+A8
+An owner of a table and and other user must simultaneasly agree to give to that user table's ownership
+
+A9
+A table may share ownership bewteen multiple users and groups, but it's still a better idea to give its ownership to a group
+
+A10
+Each table and each group must have a salt value, used to prevent anyone who has phisical access to the pdb.db file and who shares a table/group with an other user to unencrypt that user's tables

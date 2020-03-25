@@ -1,0 +1,38 @@
+CMDS
+
+NAME	CODE	ARGS		RETURN		EFFECT
+EXIT	--					No bytes breaks/ends the connection, meaning all the context (logins/actions) is lost
+PING	0			STR		Ask for pid
+KILL	1					Kill the server
+DBSTAT	2			BOOL		Ask if the database is open				
+DBOPEN	3			BOOL		Open the database. Returns if the database is opened (True) or if it has already been opened (False), in which case nothing is done
+DBCLOSE	4			BOOL		Close the database. Returns if the database is closed (True), or if it was already closed, in which case nothing is done
+LOGIN	5	STR STR		BOOL STR	Log with a username and a passwd, returns if the login was a sucess, and if it wasn't the reason of the failure
+LOGOUT	6	STR 	     			Closes the user's database and frees the instance (delete it)
+OPEN	8	STR				Open the asked table
+CLOSE	9	STR				Closes the table (it will be encrypted only if no other users are trying to access to it)
+CREATE	10	STR STR				Create a new user with password
+DELETE	11	STR 				Deletes a user /!\ you need to be loged in with that user to delete it
+USTAT	12	STR		BOOL BOOL BOOL	Ask if that user exists, if someone is loged in and if that one is you
+LIST	13	STR		LIST(STR)  	List all the tables of user, including the one he owns trought groups.
+DELTAB	18	STR				Delete table
+NEWTAB	19	STR LIST(INT) LIST(STR) LIST(STR)	Create a table (table name, header types, header names, owners - if owners is empty, the user is taken as default owner)
+LISTU	20	    		LIST(STR)	List existing users
+ADDGRP	21	STR LIST(STR)			Create a group (group name, members)
+JAGRP	22	STR STR				Invite user to join group (user 2 doesn't have to accept)
+KCKGRP	23	STR STR				Kick member from group (you can kick yourself)
+DELGRP	24	STR				Deletes group
+LISTG	33	    		LIST(STR)	List all existing groups
+GSTAT	34	STR		LIST(STR)	List all users in group
+QUERY	35	STR		LIST(STR)	Parse the query given and returns a list of ids of entries that match the query
+
+
+RETURN
+
+Status	CODE	MEANING
+Ok	0	Operation went well, returning what asked
+Error	1	Unknown command, nothing done nor returned
+Error	2	Python exception while executing the command, returning the error (str) or void str depending on configuration
+Error	3	This operation needs a user instance to be created (which means someone needs to log in, and it's very likely also requiring to be you to be loged in), but none was found
+
+
