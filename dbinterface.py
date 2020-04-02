@@ -72,7 +72,34 @@ def base(n, b):
         n//=b
     return res
 
+class Section:
+    def __init__(self, struct):
+        self.struct = struct
+        self.size = Int32()
+    def read(self, flux):
+        pos, size = self.size.read(flux.read(4))
+        pos, content = self.struct.read(flux.read(size))
+        return content
+    def write(self, content):
+        flux = self.struct.write(content)
+        size = len(flux)
+        return self.size.write(size) + flux
+
+
 class Table:
+    name = String()
+    salt = Bytes(8)
+    passwd = Bytes(32)
+    right = Struct(Int(), Bytes(64))
+    rights = List(right)
+    
+    struct = Struct(
+        name,
+        salt,
+        passwd,
+        rights
+    )
+        
     def __init__(self, id_, file, ofile, name, hash_, rights, salt, meta, logger, config):
         self.password = None
         self.hash = hash_
@@ -101,7 +128,7 @@ class Table:
                 f2.write(simplecrypt.encrypt(self.password, f.read()))
         with open(self.ofile, 'wb') as f:
             # avoid letting unused unencrypted tables
-            f.write('\n')
+            f.write(b'\n')
         self.password = None
     def close(self):
         if self.is_open:
@@ -131,8 +158,16 @@ class Table:
             raise TypeError("Line doesn't fit the header size")
         for i in range(len(line)):
             pass
-
+        
 class User:
+    name = String()
+    passwd = Bytes(32)
+    groups = List(Int())
+    struct = Struct(
+        name,
+        passwd,
+        groups
+    )
     def __init__(self, name, hash_, groups, logger, config):
         self.name = name
         self.hash = hash_
@@ -162,6 +197,15 @@ class User:
         return self._closer(self.name, self.hash, self.groups)
 
 class Group:
+    name = String()
+    salt = Bytes(8)
+    right = Struct(Int(), Bytes(64))
+    rights = List(right)
+    struct = Struct(
+        name,
+        salt,
+        rights
+    )
     def __init__(self, name, salt, rights):
         self.name = name
         self.rights = rights
@@ -174,6 +218,26 @@ class Group:
         return self._closer(self.name, self.salt, self.rights.items())
         
 class Database:
+    version = List(Int())
+    name = String()
+    nbusers = Int()
+    nbgroups = Int()
+    nbtables = Int()
+    header = Struct(
+        version,
+        name,
+        nbusers,
+        nbgroups,
+        nbtables
+    )
+    users = List(User.struct)
+    tables = List(Table.struct)
+    groups = List(Group.struct)
+    header_section = Section(header)
+    users_section = Section(users)
+    groups_section = Section(groups)
+    tables_section = Section(tables)
+    
     def __init__(self, config, logger=None):
         self.config = config
         self.logger = logger
@@ -205,49 +269,53 @@ class Database:
             if self.logger:
                 self.logger.write("Database not found, created blank one.", source="dbinterface", type_="info")
                 self.logger.flush()
-            version = gen_write_list(write_int)([int(e) for e in self.config["main"]["version"].split(".")])
-            user = write_string(self.config["default"]["user_name"]) + hashlib.pbkdf2_hmac('sha256', bytes(self.config["default"]["user_password"], self.config["default"]["encoding"]), bytes(self.config["crypto"]["salt"], self.config["default"]["encoding"]), int(self.config["crypto"]["iterations"])) + gen_write_list(write_int)([])
-            content = version + write_string(self.config["default"]["db_name"]) + write_int(1) + write_int(0) + write_int(0) + write_int(len(user)) + write_int(0) + gen_write_list(write_int)([]) + user# check pdb.def to see what these values corrispond to
-            content = write_int32(len(content)) + content
+            version = [int(e) for e in self.config["main"]["version"].split(".")]
+            name = self.config["default"]["db_name"]
+            users = [(self.config["default"]["user_name"], hashlib.pbkdf2_hmac('sha256', bytes(self.config["default"]["user_password"], self.config["default"]["encoding"]), bytes(self.config["crypto"]["salt"], self.config["default"]["encoding"]), int(self.config["crypto"]["iterations"])), [])]
+            tables = []
+            groups = []
+            nb_users = 1
+            nb_tables = 0
+            nb_groups = 0
+
+            content = self.header_section.write([
+                version,
+                name,
+                nb_users,
+                nb_tables,
+                nb_groups]) + self.users_section.write(users) + self.groups_section.write(groups) + self.tables_section.write(tables)
+            
             with open(self.config["pdb"]["file"], 'wb') as f:
                 f.write(content)
-            del content, version, user
+            del version, name, users, groups, tables, nb_users, nb_tables, nb_groups, content
             file_stream = open(self.config["pdb"]["file"], 'rb')
-        _, header_size = read_int32(file_stream.read(4)) # INT32
-        header_content = file_stream.read(header_size)
         try:
-            pos, self.header = self._read_pdb_header(header_content)
+            self.header = self.header_section.read(file_stream)
         except IndexError:
             self.logger.write("Header of file %s is corrupted" % file, source="dbinterface", type_="error")
             self.logger.flush()
             raise CorruptedData("Cannot read header")
-        if pos != header_size:
-            self.logger.write("Header of file %s is corrupted, BUT is still readable", source="dbinterface", type_="warning")
-            self.logger.flush()
-        del header_content, header_size
-        users_content = file_stream.read(self.header["sizeusers"])
         try:
-            pos, self.users = self._read_pdb_users(users_content, self.header)
+            self.users = self.users_section.read(file_stream)
         except IndexError:
             self.logger.write("Users map of database %s is corrupted" % self.header["name"], source="dbinterface", type_="error")
             self.logger.flush()
             self._init_vars()
             raise CorruptedData("Cannot read users map")
-        if pos != self.header["sizeusers"]:
-            self.logger.write("Users map of database %s is corrupted, BUT still readable" % self.header["name"], source="dbinterface", type_="warning")
-            self.logger.flush()
-        groups_content = file_stream.read(self.header["sizegroups"])
         try:
-            pos, self.groups = self._read_pdb_groups(groups_content, self.header)
+            self.groups = self.groups_section.read(file_stream)
         except IndexError:
             self.logger.write("Groups map of database %s is corrupted" % self.header["name"], source="dbinterface", type_="error")
             self.logger.flush()
             self._init_vars()
-            raise CorruptedData("Cannot read group map")
-        if pos != self.header["sizegroups"]:
-            self.logger.write("Groups map of database %s is corrupted, BUT still readable" % self.header["name"], source="dbinterface", type_="warning")
+            raise CorruptedData("Cannot read groups map")
+        try:
+            self.tables = self.tables_section.read(file_stream)
+        except IndexError:
+            self.logger.write("Tables map of database %s is corrupted" % self.header["name"], source="dbinterface", type_="error")
             self.logger.flush()
-        self._read_pdb_tables(file_stream, header)
+            self._init_vars()
+            raise CorruptedData("Cannot read tables map")
         self.is_open = True
         file_stream.close()
     def _read_pdb_tables(self, file_stream, header):

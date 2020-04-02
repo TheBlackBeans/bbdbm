@@ -4,11 +4,13 @@
 import argparse, psutil, sys, socket, configparser, os
 from carrot import write_int, read_int
 
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
+
 parser = argparse.ArgumentParser(prog="daemonmanager", description="Control and watch dbmanager daemon")
 parser.add_argument("--verbose", "-v", action="count", help="level of verbosity")
 parser.add_argument("--print", "-p", action="store_true", help="print to stdout logs")
 parser.add_argument("--force", "-f", action="store_true", help="automatically answers all questions by the default choice")
-parser.add_argument("--config", "-c", default="config.ini", help="select the config file")
+parser.add_argument("--config", "-c", default=os.path.join(BASEDIR, "config.ini"), help="select the config file")
 parser.add_argument("command", choices=["status", "poweron", "poweroff", "restart", "start", "shutdown", "stop"], default=None, help="status: ping\npoweron|start: start the daemon\npoweroff|shutdown|stop: stop the daemon\nrestart: restart the daemon")
 result = parser.parse_args()
 
@@ -58,7 +60,7 @@ if not command:
     parser.print_help()
     sys.exit(0)
     
-with open(".daemon.pid") as f:
+with open(os.path.join(BASEDIR, ".daemon.pid")) as f:
     pid = f.read().replace("\n", "")
 
 try:
@@ -69,7 +71,7 @@ except ValueError:
 if pid > 0:
     status = psutil.pid_exists(pid)
     if not status:
-        with open(".daemon.pid", 'w') as f:
+        with open(os.path.join(BASEDIR, ".daemon.pid"), 'w') as f:
             f.write("-1")
 else:
     status = False
@@ -97,12 +99,14 @@ elif command == "restart":
     if not status:
         r = prompt("Daemon is already dead, do you want to start it?")
         if r == 0:
+            dbmanager._init_config(config)
             dbmanager.start_daemon(verbosity, stdout)
     else:
         r = kill_daemon()
         if r == 1:
             print("ERROR: daemon is not dead, cannot start an other one")
             sys.exit(1)
+        dbmanager._init_config(config)
         dbmanager.start_daemon(verbosity, stdout)
 else:
     raise ValueError("Command is something ugly.")

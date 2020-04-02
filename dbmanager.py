@@ -21,6 +21,8 @@ import socket, os, sys, threading, datetime, traceback, io, configparser, signal
 from dbinterface import Database, LoginError
 from carrot import read_int, read_float, read_string, write_int, write_float, write_string, gen_read_list, gen_write_list, read_bool, write_bool
 
+BASEDIR = os.path.dirname(os.path.abspath(__file__))
+
 try:
     import setproctitle
 except ImportError:
@@ -96,7 +98,7 @@ def print_adress(adress):
             
 class DatabaseManager(Daemon):
     def run(self):
-        with open(config["daemon"]["pidfile"], "w") as f:
+        with open(os.path.join(BASEDIR, config["daemon"]["pidfile"], "w")) as f:
             f.write(str(self.pid))
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((config["socket"]["host"], int(config["socket"]["port"])))
@@ -242,14 +244,14 @@ class DatabaseManager(Daemon):
         for kill in self._kills:
             kill()
         logger.close()
-        with open(config["daemon"]["pidfile"], "w") as f:
+        with open(os.path.join(BASEDIR, config["daemon"]["pidfile"], "w")) as f:
             f.write("-1")
         sys.exit(errcode)
         
 def start_daemon(verbosity=0, stdout=False):
     global logger, dbdaemon_lock, dbmanager
     setproctitle.setproctitle(config["daemon"]["proctitle"])
-    logger = log.Logger(config["default"]["log_dir"].split(os.sep), verbosity=verbosity, stdout=stdout)
+    logger = log.Logger(BASEDIR.split(os.sep) + config["default"]["log_dir"].split(os.sep), verbosity=verbosity, stdout=stdout)
     logger.open()
 
     logger.write("Starting the daemon %s (v%s)..." % (config["main"]["vname"], config["main"]["version"]), source="dbmanager", type_="info")
@@ -272,6 +274,6 @@ def start_daemon(verbosity=0, stdout=False):
         
 if __name__ == "__main__":
     config = configparser.ConfigParser()
-    config.read("config.ini")
+    config.read(os.path.join(BASEDIR, "config.ini"))
     _init_config(config)
     start_daemon()

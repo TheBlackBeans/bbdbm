@@ -7,20 +7,27 @@ class UnknownCommand(BaseException): pass
 class LoginError(BaseException): pass
 
 class Connection:
+    BUFFSIZE = 4096
     def __init__(self, adress="localhost", port=1818):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((adress, port))
     def _read(self):
-        ret = self.socket.recv(1024)
-        pos, retcode = read_int(ret)
+        ret = self.socket.recv(self.BUFFSIZE)
+        try:
+            pos, retcode = read_int(ret)
+        except IndexError:
+            raise ValueError("retcode not properly formated")
         if retcode == 0:
             return ret[pos:]
         elif retcode == 1:
             raise UnknownCommand("Unknown command, nothing done nor returned")
         elif retcode == 2:
-            pos, exception = read_string(ret, pos)
+            try:
+                pos, exception = read_string(ret, pos)
+            except IndexError:
+                raise ValueError("retcode argument not properly formated %s" % ret[pos:])
             print(exception)
-            raise
+            raise 
         elif retcode == 3:
             raise LoginError("You need to be loged in to complete this action")
         else:
